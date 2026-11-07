@@ -1,0 +1,39 @@
+name: Build and publish installable APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build Android APK
+        run: gradle --no-daemon assembleDebug --stacktrace
+      - name: Save APK as Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kays-Code-Relay-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Publish direct-download APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Kays-Code-Relay.apk
+          gh release create "build-${GITHUB_RUN_NUMBER}" Kays-Code-Relay.apk --title "Kay's Code Relay build ${GITHUB_RUN_NUMBER}" --notes "Private, opt-in Android SMS relay and Signal Shield. Debug-signed APK for personal sideloading."
